@@ -1,12 +1,5 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, { useEffect } from 'react';
+import type { PropsWithChildren } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -15,7 +8,11 @@ import {
   Text,
   useColorScheme,
   View,
+  Button,
+  Platform,
 } from 'react-native';
+import BleManager from 'react-native-ble-manager';
+import { NativeEventEmitter, NativeModules } from 'react-native';
 
 import {
   Colors,
@@ -29,7 +26,13 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({children, title}: SectionProps): React.JSX.Element {
+interface Peripheral {
+  id: string;
+  name?: string;
+  // Add other properties of the peripheral object if you know them
+}
+
+function Section({ children, title }: SectionProps): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -39,7 +42,8 @@ function Section({children, title}: SectionProps): React.JSX.Element {
           {
             color: isDarkMode ? Colors.white : Colors.black,
           },
-        ]}>
+        ]}
+      >
         {title}
       </Text>
       <Text
@@ -48,7 +52,8 @@ function Section({children, title}: SectionProps): React.JSX.Element {
           {
             color: isDarkMode ? Colors.light : Colors.dark,
           },
-        ]}>
+        ]}
+      >
         {children}
       </Text>
     </View>
@@ -62,6 +67,39 @@ function App(): React.JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  useEffect(() => {
+    BleManager.start({ showAlert: false });
+
+    const BleManagerModule = NativeModules.BleManager;
+    if (BleManagerModule) {
+      const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+      const handlerDiscover = bleManagerEmitter.addListener(
+        'BleManagerDiscoverPeripheral',
+        handleDiscoverPeripheral
+      );
+
+      return () => {
+        handlerDiscover.remove();
+      };
+    } else {
+      console.warn('BleManagerModule is null.');
+    }
+  }, []);
+
+  const handleDiscoverPeripheral = (peripheral: Peripheral) => {
+    console.log('Discovered peripheral:', peripheral);
+  };
+
+  const startScan = () => {
+    BleManager.scan([], 5, true)
+      .then(() => {
+        console.log('Scanning...');
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
+
   return (
     <SafeAreaView style={backgroundStyle}>
       <StatusBar
@@ -70,26 +108,16 @@ function App(): React.JSX.Element {
       />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
+        style={backgroundStyle}
+      >
         <Header />
         <View
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+          }}
+        >
+          
+          <Button title="Start Scan" onPress={startScan} />
         </View>
       </ScrollView>
     </SafeAreaView>
